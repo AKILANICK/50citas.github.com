@@ -218,31 +218,26 @@
         </div>
     </div>
 
-    <script>
-        // ==========================================
-        // 1. CONFIGURACIÓN DE FIREBASE (¡Pega aquí tus datos!)
-        // ==========================================
+   <script>
+        // CONFIGURACIÓN DE FIREBASE (Firestore para textos y sincronización)
         const firebaseConfig = {
-            apiKey: "PEGA_AQUÍ_TU_API_KEY",
-            authDomain: "PEGA_AQUÍ_TU_AUTH_DOMAIN",
-            projectId: "PEGA_AQUÍ_TU_PROJECT_ID",
-            storageBucket: "PEGA_AQUÍ_TU_STORAGE_BUCKET",
-            messagingSenderId: "PEGA_AQUÍ_TU_MESSAGING_SENDER_ID",
-            appId: "PEGA_AQUÍ_TU_APP_ID"
+            apiKey: "AIzaSyDqOj7dimO5iU3s-d48BQ8fzd-rLYFNqRI",
+            authDomain: "citas-mishi.firebaseapp.com",
+            projectId: "citas-mishi",
+            storageBucket: "citas-mishi.firebasestorage.app",
+            messagingSenderId: "1041585507682",
+            appId: "1:1041585507682:web:706ab14d2b3c1dc81c303b"
         };
 
-        // Inicializar Firebase
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
         const db = firebase.firestore();
-        const storage = firebase.storage();
 
-        // ==========================================
-        // 2. VARIABLES GLOBALES Y LISTA
-        // ==========================================
+        // CONFIGURACIÓN DE CLOUDINARY (Para guardar fotos gratis sin tarjeta)
+        const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/p8nrjgqo/image/upload";
+        const CLOUDINARY_PRESET = "p8nrjgqo";
+
         const listaCitas = [
-            "Picnic", "Charcos", "Cine", "Salir a comer", "Ir a un parque", "Pueblito", 
+            "Picnic", "Charcos", "Cine", "Salir a comer", "Ir a un parque", "Pueiltto", 
             "Museo", "Noche de películas", "Preparar un postre", "Pintar cuadros", 
             "Parque de diversiones", "Mirador", "Zoológico", "Tour", "Cocinar Juntos", 
             "Desayunar Juntos", "Dibujar", "Armar un lego", "Skincare", "Bailar (Aprender)", 
@@ -259,11 +254,8 @@
         let currentSpread = 0; 
         let currentFilter = 'all';
         let activeCardIndex = null;
-        
-        // Nuestro objeto principal donde se guardan los datos descargados de Firebase
         let dataCitas = {};
 
-        // Efectos Visuales (Polvo)
         const dustContainer = document.getElementById('dust-container');
         for (let i = 0; i < 80; i++) {
             let dust = document.createElement('div');
@@ -282,19 +274,9 @@
             dustContainer.style.transform = `translate(${x}px, ${y}px)`;
         });
 
-        // ==========================================
-        // 3. SINCRONIZACIÓN EN TIEMPO REAL CON FIREBASE
-        // ==========================================
-        // Esto escucha cambios en la base de datos de manera constante
         db.collection("album_citas").doc("datos_compartidos").onSnapshot((doc) => {
-            if (doc.exists) {
-                dataCitas = doc.data();
-            } else {
-                // Si el documento no existe en Firebase, lo crea vacío la primera vez
-                dataCitas = {};
-            }
-            renderSpread();
-            updateProgress();
+            if (doc.exists) { dataCitas = doc.data(); } else { dataCitas = {}; }
+            renderSpread(); updateProgress();
         });
 
         function switchUser(user) {
@@ -342,15 +324,8 @@
 
             const notebook = document.getElementById('main-notebook');
             notebook.classList.add('page-turning');
-            
-            setTimeout(() => {
-                currentSpread = newSpread;
-                renderSpread();
-            }, 250);
-            
-            setTimeout(() => {
-                notebook.classList.remove('page-turning');
-            }, 500);
+            setTimeout(() => { currentSpread = newSpread; renderSpread(); }, 250);
+            setTimeout(() => { notebook.classList.remove('page-turning'); }, 500);
         }
 
         function renderSpread() {
@@ -395,9 +370,9 @@
 
         function updateProgress() {
             let completed = 0;
-            listaCitas.forEach((_, index) => { if (dataCitas[index] && dataCitas[index].done) completed++; });
+            listaCitas.getData = listaCitas.forEach((_, index) => { if (dataCitas[index] && dataCitas[index].done) completed++; });
             const pct = (completed / 50) * 100;
-            document.getElementById('progress-bar').style.width = `${pct}%`;
+            document.getElementById('progress-bar').style.width = `${pct%}`;
             document.getElementById('progress-text').innerText = `${completed}/50 COMPLETADAS`;
         }
 
@@ -417,28 +392,21 @@
 
         function closeModal() { document.getElementById('modal').style.display = 'none'; activeCardIndex = null; }
 
-        // ==========================================
-        // 4. GUARDAR Y ELIMINAR DATOS (Enviando a Firebase)
-        // ==========================================
-        
         async function removePhoto() {
-            if(confirm('¿Seguro que quieres eliminar la foto actual? Esta acción no se puede deshacer.')) {
+            if(confirm('¿Seguro que quieres eliminar la foto actual?')) {
                 document.getElementById('loading-text').innerText = "Eliminando foto...";
                 document.getElementById('loading-screen').style.display = 'flex';
                 
                 if (!dataCitas[activeCardIndex]) dataCitas[activeCardIndex] = {};
                 dataCitas[activeCardIndex].photo = '';
                 
-                // Actualizar en Firebase
                 await db.collection("album_citas").doc("datos_compartidos").set(dataCitas, { merge: true });
-                
                 document.getElementById('loading-screen').style.display = 'none';
                 closeModal();
             }
         }
 
         async function saveDate() {
-            // Mostrar pantalla de carga
             document.getElementById('loading-text').innerText = "Guardando en la nube...";
             document.getElementById('loading-screen').style.display = 'flex';
 
@@ -451,36 +419,40 @@
             
             dataCitas[activeCardIndex].done = isDone;
             dataCitas[activeCardIndex].date = dateVal;
-            dataCitas[activeCardIndex].desc = descVal;
+            dataCitas[activeLayout = activeCardIndex].desc = descVal;
             dataCitas[activeCardIndex].registeredBy = isDone ? currentUser : null;
 
             try {
-                // Si el usuario seleccionó una imagen nueva, la subimos al Storage
+                // Si hay foto nueva, la subimos a Cloudinary gratis
                 if (photoInput.files && photoInput.files[0]) {
-                    document.getElementById('loading-text').innerText = "Subiendo imagen pesada, espera un momento...";
-                    
+                    document.getElementById('loading-text').innerText = "Subiendo foto a Cloudinary...";
                     const file = photoInput.files[0];
-                    const storageRef = storage.ref(`fotos_citas/cita_${activeCardIndex}_${Date.now()}`);
-                    const snapshot = await storageRef.put(file);
-                    
-                    // Obtener la URL pública de la imagen alojada
-                    const downloadURL = await snapshot.ref.getDownloadURL();
-                    dataCitas[activeCardIndex].photo = downloadURL;
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("upload_preset", CLOUDINARY_PRESET);
+
+                    const response = await fetch(CLOUDINARY_URL, {
+                        method: "POST",
+                        body: formData
+                    });
+                    const result = await desdeJson = await response.json();
+                    if (result.secure_url) {
+                        dataCitas[activeCardIndex].photo = result.secure_url;
+                    } else {
+                        throw new Error("Error al subir a Cloudinary");
+                    }
                 }
 
-                // Escribir los datos JSON en Firestore
                 await db.collection("album_citas").doc("datos_compartidos").set(dataCitas, { merge: true });
-                
                 document.getElementById('loading-screen').style.display = 'none';
                 closeModal();
 
             } catch (error) {
-                console.error("Error al guardar:", error);
-                alert("Hubo un error guardando en Firebase. Revisa que tus credenciales de 'firebaseConfig' estén correctas.");
+                console.error("Error:", error);
+                alert("Hubo un error guardando. Revisa la consola.");
                 document.getElementById('loading-screen').style.display = 'none';
             }
         }
-
     </script>
 </body>
 </html>
