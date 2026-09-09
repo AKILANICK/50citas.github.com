@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrapbook 50 Citas - Cloudinary & Responsive</title>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Montserrat:wght@500;900&display=swap" rel="stylesheet">
+    
+    <!-- FIREBASE SDKs (Solo App y Firestore. Storage fue removido para usar Cloudinary) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --mat-base: #388e63; --grid-major: rgba(255, 255, 255, 0.45); --grid-minor: rgba(255, 255, 255, 0.15);
+            --ink: #0a0a0a; --highlight: #e60000; --paper: #f9f9f9;
+            --shadow-hard: rgba(0,0,0,0.7); --shadow-soft: rgba(0,0,0,0.4);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { background-color: var(--mat-base); background-image: linear-gradient(var(--grid-minor) 1px, transparent 1px), linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px), linear-gradient(var(--grid-major) 2px, transparent 2px), linear-gradient(90deg, var(--grid-major) 2px, transparent 2px); background-size: 10px 10px, 10px 10px, 50px 50px, 50px 50px; font-family: 'Montserrat', sans-serif; color: var(--ink); min-height: 1100px; overflow-x: hidden; display: flex; justify-content: center; align-items: flex-start; position: relative; }
+        .window-light { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(115deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.03) 20%, transparent 22%, transparent 35%, rgba(255,255,255,0.1) 37%, rgba(255,255,255,0) 45%); pointer-events: none; z-index: 100; mix-blend-mode: screen; }
+        #dust-container { position: fixed; top: -50px; left: -50px; width: 120vw; height: 120vh; pointer-events: none; z-index: 99; overflow: visible; }
+        .dust-particle { position: absolute; background: rgba(255, 255, 255, 0.4); border-radius: 50%; opacity: 0; animation: floatDust linear infinite; box-shadow: 0 0 5px rgba(255, 255, 255, 0.3), 0 0 10px rgba(255, 255, 255, 0.1); }
+        @keyframes floatDust { 0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; } 20% { opacity: 0.8; } 80% { opacity: 0.8; } 100% { transform: translateY(-200px) translateX(50px) scale(1.5); opacity: 0; } }
+        
+        /* DISEÑO DE ESCRITORIO (BASE) */
+        .desk-container { position: relative; width: 100%; max-width: 1400px; height: 1100px; z-index: 10; margin: 0 auto; }
+        .coffee-cup { position: absolute; top: 60px; right: 350px; width: 90px; height: 90px; background: #e8e8e8; border-radius: 50%; z-index: 5; box-shadow: 15px 25px 20px var(--shadow-soft), inset -8px -8px 15px rgba(0,0,0,0.15); }
+        .coffee-inside { position: absolute; top: 8px; left: 8px; width: 74px; height: 74px; background: #3b2210; border-radius: 50%; box-shadow: inset 0 0 15px #1a0f07, inset 2px 2px 5px rgba(255,255,255,0.2); border: 2px solid #c4c4c4; }
+        .coffee-handle { position: absolute; top: 25px; right: -20px; width: 40px; height: 40px; border: 12px solid #e8e8e8; border-radius: 50%; z-index: -1; box-shadow: 10px 15px 15px var(--shadow-soft); }
+        .camera-3d { position: absolute; top: 480px; left: 40px; width: 140px; height: 90px; background: linear-gradient(to bottom, #dedede 30%, #222 30%); border-radius: 8px; z-index: 8; transform: rotate(-15deg); box-shadow: -10px 20px 25px var(--shadow-hard); border-top: 2px solid #fff; }
+        .camera-lens { position: absolute; top: 15px; left: 35px; width: 70px; height: 70px; background: #111; border: 8px solid #555; border-radius: 50%; box-shadow: inset 5px 5px 10px rgba(255,255,255,0.2), 0 5px 10px rgba(0,0,0,0.8); }
+        .camera-button { position: absolute; top: -8px; right: 15px; width: 15px; height: 8px; background: #999; border-radius: 3px 3px 0 0; }
+        .camera-flash { position: absolute; top: 5px; left: 15px; width: 20px; height: 15px; background: #111; border-radius: 2px; }
+        .date-paper { position: absolute; bottom: 80px; left: 60px; background: #fff; padding: 20px; font-family: 'Caveat', cursive; font-size: 1.8rem; font-weight: bold; color: var(--ink); transform: rotate(-8deg); z-index: 6; box-shadow: 8px 12px 15px var(--shadow-soft); border-radius: 5px 255px 3px 25px / 255px 5px 225px 3px; border: 1px dashed #bbb; }
+        .eraser-3d { position: absolute; bottom: 100px; right: 200px; width: 60px; height: 30px; background: linear-gradient(90deg, #3d7ee8 50%, #f0f0f0 50%); transform: rotate(35deg); z-index: 5; border-radius: 3px; box-shadow: 8px 12px 10px var(--shadow-hard); }
+        .tape-roll { position: absolute; bottom: 120px; right: 350px; width: 70px; height: 70px; background: transparent; border: 15px solid #dcd4c5; border-radius: 50%; transform: rotate(45deg); z-index: 4; box-shadow: 10px 15px 15px var(--shadow-soft), inset 3px 3px 5px rgba(0,0,0,0.3); }
+        .marker { position: absolute; width: 140px; height: 16px; border-radius: 8px; z-index: 6; box-shadow: 5px 10px 15px var(--shadow-soft); }
+        .marker.red { top: 400px; right: 40px; background: #fff; transform: rotate(75deg); border-right: 30px solid #cc0000; }
+        .marker.black { bottom: 350px; left: 80px; background: #222; transform: rotate(15deg); border-left: 30px solid #555; }
+        .post-it { position: absolute; width: 100px; height: 100px; padding: 10px; font-family: 'Caveat', cursive; font-size: 1.2rem; box-shadow: 5px 10px 15px var(--shadow-soft); z-index: 5; border-radius: 2px 20px 2px 20px / 20px 2px 20px 2px; }
+        .pi-1 { bottom: 250px; right: 60px; background: #ff99e6; transform: rotate(-15deg); }
+        .pi-2 { top: 320px; left: 80px; background: #99ff99; transform: rotate(20deg); }
+        .glasses-3d { position: absolute; bottom: 180px; left: 350px; transform: rotate(-25deg); display: flex; gap: 15px; align-items: center; z-index: 5; filter: drop-shadow(8px 15px 10px rgba(0,0,0,0.5)); }
+        .glasses-frame { width: 75px; height: 55px; border: 7px solid #151515; border-radius: 10px 10px 30px 30px; background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0.1) 100%); box-shadow: inset 3px 3px 6px rgba(255,255,255,0.3); position: relative; }
+        .glasses-frame::before { content: ''; position: absolute; top: -3px; left: -10px; width: 6px; height: 12px; background: #ddd; border-radius: 3px; box-shadow: inset 1px 1px 2px #fff; }
+        .glasses-bridge { width: 20px; height: 7px; background: #151515; border-radius: 5px; margin-top: -20px; box-shadow: inset 1px 1px 2px rgba(255,255,255,0.2); }
+        .pencil-3d { position: absolute; top: 60px; left: 450px; width: 12px; height: 250px; background: linear-gradient(90deg, #d38f38 0%, #ffb650 30%, #e0993d 70%, #b87624 100%); transform: rotate(70deg); z-index: 6; border-radius: 2px; box-shadow: 10px 15px 15px var(--shadow-soft); }
+        .pencil-tip { position: absolute; top: -25px; left: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 25px solid #d4c5b0; }
+        .pencil-tip::after { content: ''; position: absolute; top: 15px; left: -2px; border-left: 2px solid transparent; border-right: 2px solid transparent; border-bottom: 10px solid #333; }
+        .ruler-3d { position: absolute; bottom: 250px; right: -50px; width: 350px; height: 40px; background: linear-gradient(to bottom, #f0f0f0, #ccc, #999); transform: rotate(-70deg); z-index: 4; border-radius: 2px; box-shadow: 8px 12px 15px var(--shadow-hard); border-top: 1px solid white; border-bottom: 1px solid #555; background-image: repeating-linear-gradient(90deg, #333, #333 1px, transparent 1px, transparent 10px); background-size: 10px 15px; background-repeat: repeat-x; background-position: top; }
+        .crumpled-paper { position: absolute; width: 70px; height: 70px; background: #eee; border-radius: 50%; z-index: 8; box-shadow: 10px 15px 20px rgba(0,0,0,0.5), inset 5px 5px 15px rgba(0,0,0,0.2); background-image: radial-gradient(circle at 30% 30%, rgba(0,0,0,0.1) 0%, transparent 20%), linear-gradient(45deg, transparent 40%, rgba(0,0,0,0.1) 45%, transparent 50%), linear-gradient(-45deg, transparent 30%, rgba(0,0,0,0.15) 35%, transparent 40%); }
+        .paperclip { position: absolute; width: 15px; height: 45px; border: 2px solid #ccc; border-radius: 10px; box-shadow: 3px 5px 5px rgba(0,0,0,0.4), inset 1px 1px 2px white; z-index: 7; }
+        .paperclip::after { content: ''; position: absolute; top: 5px; left: 3px; width: 5px; height: 30px; border: 2px solid #ccc; border-bottom: none; border-radius: 5px 5px 0 0; }
+        .title-piece { position: absolute; top: 150px; left: 50%; transform: translateX(-50%) rotate(-3deg); background: #fff; padding: 15px 50px; box-shadow: 8px 12px 20px var(--shadow-soft); border-radius: 2px 255px 3px 25px / 255px 5px 225px 3px; border: 2px solid #ddd; z-index: 35; text-align: center; }
+        .title-piece h1 { font-family: 'Montserrat', sans-serif; font-size: 3.5rem; font-weight: 900; color: var(--ink); text-transform: uppercase; letter-spacing: -2px; line-height: 1; }
+        .smartphone-front { position: absolute; top: 40px; left: 50px; width: 170px; height: 340px; background: #111; border-radius: 30px; box-shadow: 15px 25px 30px var(--shadow-hard), inset -3px -3px 8px rgba(255,255,255,0.2), inset 2px 2px 5px rgba(0,0,0,0.8); transform: rotate(-8deg); z-index: 25; padding: 12px; border: 2px solid #555; }
+        .phone-notch { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 60px; height: 18px; background: #000; border-radius: 0 0 10px 10px; z-index: 30; }
+        .phone-screen { width: 100%; height: 100%; background: #0f0f13; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; background-image: linear-gradient(180deg, #1c1c24, #0a0a0d); border: 2px solid #000; }
+        .screen-header { color: #888; text-align: center; font-size: 0.65rem; padding: 25px 5px 10px; font-weight: bold; }
+        .user-toggle { flex-grow: 1; display: flex; flex-direction: column; padding: 10px; gap: 10px; }
+        .user-option { flex-grow: 1; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; color: #666; background: #222; border-radius: 12px; transition: 0.3s; cursor: pointer; border: 1px solid #333; font-weight: bold; }
+        .user-option.active { background: #fff; color: #000; box-shadow: 0 0 15px rgba(255,255,255,0.2); border: none; }
+        .user-polaroid { position: absolute; top: 60px; left: 240px; width: 180px; height: 220px; background: white; padding: 12px 12px 40px 12px; box-shadow: 12px 18px 25px var(--shadow-hard); transform: rotate(4deg); z-index: 24; transition: transform 0.3s; }
+        .polaroid-tape { position: absolute; top: -12px; left: 50%; transform: translateX(-50%) rotate(2deg); width: 80px; height: 25px; background: rgba(255,255,255,0.7); box-shadow: 0 2px 4px rgba(0,0,0,0.2); backdrop-filter: blur(2px); border: 1px solid #ddd; }
+        .user-photo-container { width: 100%; height: 100%; background: #e0e0e0; border: 1px solid #999; display: flex; justify-content: center; align-items: center; position: relative; overflow: hidden; background-image: radial-gradient(circle, #fff, #ddd); }
+        .polaroid-text { position: absolute; bottom: 8px; left: 0; width: 100%; text-align: center; font-family: 'Caveat', cursive; font-size: 1.5rem; font-weight: bold; }
+        .lentes-nico { display: flex; gap: 5px; align-items: center; position: relative; transform: scale(1.3); filter: drop-shadow(3px 3px 2px rgba(0,0,0,0.3)); }
+        .ch-lens { width: 45px; height: 35px; border: 6px solid #111; border-radius: 5px 5px 15px 15px; background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.6) 50%, transparent 60%); position: relative; }
+        .ch-lens::after { content: '✥'; position: absolute; top: -5px; color: #ddd; font-size: 10px; text-shadow: 1px 1px 0 #000; }
+        .ch-lens:first-child::after { left: -4px; } .ch-lens:last-child::after { right: -4px; }
+        .ch-bridge { width: 10px; height: 6px; background: #111; margin-top: -15px; border-radius: 2px; }
+        .fresa-mishi { font-size: 5rem; line-height: 1; filter: drop-shadow(4px 4px 5px rgba(0,0,0,0.4)); animation: pop 0.3s ease-out; display: none; }
+        @keyframes pop { 0% { transform: scale(0); } 80% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        .clipboard { position: absolute; top: 40px; right: 50px; width: 250px; height: 350px; background: #c2aa8a; border-radius: 5px; box-shadow: 15px 25px 35px var(--shadow-hard); transform: rotate(5deg); z-index: 20; padding: 40px 15px 15px 15px; }
+        .clip-metal { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 90px; height: 45px; background: linear-gradient(to bottom, #e6e6e6, #999); border-radius: 5px; box-shadow: 0px 8px 10px rgba(0,0,0,0.7); }
+        .clipboard-paper { width: 100%; height: 100%; background: #fff; box-shadow: 2px 2px 6px rgba(0,0,0,0.2); padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+        .filter-btn { background: transparent; border: 2px solid var(--ink); padding: 8px; font-weight: 900; text-transform: uppercase; cursor: pointer; transition: 0.2s; font-size: 0.8rem; }
+        .filter-btn.active-filter { background: var(--highlight); color: white; border-color: var(--highlight); }
+        .progress-box { border: 2px solid var(--ink); height: 30px; position: relative; margin-top: auto; }
+        .progress-bar { background: var(--ink); height: 100%; width: 0%; transition: width 0.3s; }
+        .progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; mix-blend-mode: difference; font-size: 0.8rem; font-weight: bold; width: 100%; text-align: center; }
+        .notebook-wrapper { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(1deg); z-index: 30; }
+        .notebook { display: flex; width: 900px; height: 580px; background: #fff; box-shadow: 35px 45px 50px var(--shadow-hard); border-radius: 8px; position: relative; transform-origin: center; }
+        .notebook.page-turning { animation: flipPageAnim 0.5s ease-in-out forwards; }
+        @keyframes flipPageAnim { 0% { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); } 50% { opacity: 0; transform: scale(0.95) translateY(-25px) rotate(-1.5deg); box-shadow: 15px 25px 30px rgba(0,0,0,0.3); } 100% { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); } }
+        .notebook::before { content: ''; position: absolute; top: 3px; left: -3px; width: 100%; height: 100%; background: #f4f4f4; border-radius: 8px; z-index: -1; box-shadow: -2px 2px 0px #ddd; }
+        .notebook-spine { position: absolute; left: 50%; top: 0; width: 50px; height: 100%; transform: translateX(-50%); background: linear-gradient(to right, transparent, rgba(0,0,0,0.05) 15%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.05) 85%, transparent); z-index: 35; pointer-events: none; }
+        .page { width: 50%; height: 100%; padding: 35px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 20px; position: relative; }
+        .page.left { border-right: 1px solid #e0e0e0; }
+        .page-turn { position: absolute; top: 50%; transform: translateY(-50%); background: #111; color: white; border: none; padding: 20px 10px; font-weight: 900; cursor: pointer; box-shadow: 4px 6px 10px rgba(0,0,0,0.5); z-index: 40; transition: 0.2s; }
+        .page-turn.prev { left: -40px; border-radius: 10px 0 0 10px; }
+        .page-turn.next { right: -40px; border-radius: 0 10px 10px 0; }
+        .page-turn:hover { background: var(--highlight); }
+        .date-card { background: #fafafa; border: 1px solid #ccc; position: relative; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 12px; box-shadow: 4px 6px 8px var(--shadow-soft); transition: 0.2s; }
+        .date-card:hover { transform: scale(1.08) rotate(-2deg) !important; z-index: 45; box-shadow: 8px 12px 15px rgba(0,0,0,0.3); }
+        .tape-red { position: absolute; top: -10px; left: 50%; transform: translateX(-50%) rotate(-3deg); width: 60px; height: 20px; background: rgba(230,0,0,0.8); border-left: 2px dashed #990000; border-right: 2px dashed #990000; }
+        .date-card h3 { font-size: 0.95rem; text-transform: uppercase; font-weight: 900; background: white; padding: 2px 4px; margin-bottom: 5px; }
+        .date-card.completed h3 { text-decoration: line-through; text-decoration-color: var(--highlight); text-decoration-thickness: 3px; }
+        .polaroid-img { width: 100%; height: 90px; background: #eee; border: 1px solid #ccc; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .polaroid-img img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(10%) sepia(20%); }
+        .registered-badge { position: absolute; bottom: -8px; right: -8px; color: white; font-family: 'Montserrat', sans-serif; font-size: 0.65rem; font-weight: 900; padding: 3px 8px; border-radius: 3px; transform: rotate(-6deg); box-shadow: 2px 3px 5px rgba(0,0,0,0.4); z-index: 10; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(5px); }
+        .modal { background: var(--paper); padding: 2.5rem; border: 2px solid #ddd; box-shadow: 15px 25px 40px rgba(0,0,0,0.7); width: 450px; max-width: 95%; position: relative; transform: rotate(1deg); }
+        .modal input[type="date"], .modal input[type="file"] { width: 100%; padding: 12px; margin-top: 5px; border: 2px solid var(--ink); background: white; }
+        .close-modal { position: absolute; top: -20px; right: -20px; background: var(--highlight); color: white; border: none; width: 45px; height: 45px; border-radius: 50%; font-weight: bold; cursor: pointer; box-shadow: 2px 4px 8px rgba(0,0,0,0.5); }
+        .loading-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 50; display: none; flex-direction: column; justify-content: center; align-items: center; font-family: 'Montserrat', sans-serif; font-weight: 900; }
+        .spinner { border: 6px solid #f3f3f3; border-top: 6px solid var(--ink); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* ==========================================
+           MODIFICACIÓN RESPONSIVE (Móviles y Tablets)
+           ========================================== */
+        @media (max-width: 1050px) {
+            body { min-height: 100vh; overflow-y: auto; overflow-x: hidden; padding-bottom: 80px; }
+            .desk-container { height: auto; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 30px; padding-top: 40px; }
+            
+            /* Ocultar accesorios puramente decorativos en celular para evitar desorden */
+            .camera-3d, .eraser-3d, .tape-roll, .marker, .glasses-3d, .pencil-3d, .ruler-3d, .crumpled-paper, .paperclip, .date-paper, .coffee-cup, .post-it { display: none !important; }
+
+            /* Cambiar posiciones absolutas a relativas para que se apilen hacia abajo */
+            .title-piece { position: relative; top: 0; left: 0; transform: rotate(-3deg); margin-bottom: 20px; }
+            
+            /* Agrupar elementos interactivos visualmente */
+            .smartphone-front, .user-polaroid, .clipboard { position: relative; top: 0; left: 0; right: 0; margin: 0 auto; box-shadow: 10px 15px 20px var(--shadow-soft); }
+            .smartphone-front { transform: rotate(-2deg); margin-bottom: 15px; }
+            .user-polaroid { transform: rotate(3deg); margin-bottom: 15px; }
+            .clipboard { transform: rotate(-1deg); margin-bottom: 30px; }
+
+            /* Ajustar el cuaderno principal al 100% del ancho del celular */
+            .notebook-wrapper { position: relative; top: 0; left: 0; transform: none; width: 95%; max-width: 600px; margin: 0 auto; margin-top: 20px; }
+            .notebook { width: 100%; height: auto; min-height: 800px; flex-direction: column; border-radius: 8px; }
+            .notebook::before { display: none; } /* Quitar sombra extra */
+            .notebook-spine { width: 100%; height: 30px; top: 50%; left: 0; transform: translateY(-50%); background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.1) 50%, transparent); z-index: 35; }
+            
+            /* Las páginas izquierda y derecha ahora se apilan una arriba de la otra */
+            .page { width: 100%; min-height: 500px; padding: 20px; grid-template-columns: 1fr 1fr; gap: 15px; }
+            .page.left { border-right: none; border-bottom: 1px solid #e0e0e0; }
+            
+            /* Reposicionar los botones de flecha abajo del cuaderno */
+            .page-turn { position: absolute; padding: 15px 25px; border-radius: 5px; top: auto; bottom: -70px; transform: none; z-index: 50; }
+            .page-turn.prev { left: 10%; border-radius: 10px; }
+            .page-turn.next { right: 10%; border-radius: 10px; }
+        }
+        
+        /* Ajuste extra para celulares muy delgados */
+        @media (max-width: 500px) {
+            .page { grid-template-columns: 1fr; /* 1 foto por fila en vez de 2 */ }
+            .title-piece h1 { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="window-light"></div>
+    <div id="dust-container"></div>
+
+    <div class="desk-container">
+        <!-- ACCESORIOS 3D (Se ocultan automáticamente en móviles) -->
+        <div class="coffee-cup"><div class="coffee-inside"></div><div class="coffee-handle"></div></div>
+        <div class="camera-3d"><div class="camera-lens"></div><div class="camera-button"></div><div class="camera-flash"></div></div>
+        <div class="date-paper">INICIO: 25 - OCT - 2025</div>
+        <div class="eraser-3d"></div>
+        <div class="tape-roll"></div>
+        <div class="marker red"></div>
+        <div class="marker black"></div>
+        <div class="post-it pi-1">Faltan fotos!!</div>
+        <div class="post-it pi-2">❤</div>
+        <div class="glasses-3d"><div class="glasses-frame"></div><div class="glasses-bridge"></div><div class="glasses-frame"></div></div>
+        <div class="pencil-3d"><div class="pencil-tip"></div></div>
+        <div class="ruler-3d"></div>
+        <div class="crumpled-paper" style="bottom: 70px; left: 300px;"></div>
+        <div class="crumpled-paper" style="top: 100px; right: 500px; transform: scale(0.8) rotate(45deg);"></div>
+        <div class="crumpled-paper" style="bottom: 50px; right: 500px; transform: scale(1.2) rotate(-30deg);"></div>
+        <div class="paperclip" style="top: 250px; left: 450px; transform: rotate(45deg);"></div>
+        <div class="paperclip" style="bottom: 250px; right: 450px; transform: rotate(-15deg);"></div>
+
+        <div class="title-piece">
+            <h1>50 Citas</h1>
+        </div>
+
+        <div class="smartphone-front">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+                <div class="screen-header">USER_TOGGLE.APP</div>
+                <div class="user-toggle">
+                    <div class="user-option active" id="btn-Nico" onclick="switchUser('Nico')">NICO</div>
+                    <div class="user-option" id="btn-Mishi" onclick="switchUser('Mishi')">MISHI</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="user-polaroid">
+            <div class="polaroid-tape"></div>
+            <div class="user-photo-container">
+                <div class="lentes-nico" id="icono-nico">
+                    <div class="ch-lens"></div><div class="ch-bridge"></div><div class="ch-lens"></div>
+                </div>
+                <div class="fresa-mishi" id="icono-mishi">🍓</div>
+            </div>
+            <div class="polaroid-text" id="dynamic-name">Nico</div>
+        </div>
+
+        <div class="clipboard">
+            <div class="clip-metal"></div>
+            <div class="clipboard-paper">
+                <button class="filter-btn active-filter" onclick="setFilter('all', this)">Todas las citas</button>
+                <button class="filter-btn" onclick="setFilter('done', this)">Completadas</button>
+                <button class="filter-btn" onclick="setFilter('pending', this)">Pendientes</button>
+                <div class="progress-box">
+                    <div class="progress-bar" id="progress-bar"></div>
+                    <div class="progress-text" id="progress-text">0/50</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="notebook-wrapper">
+            <button class="page-turn prev" onclick="turnPage(-1)">&#9664;</button>
+            <button class="page-turn next" onclick="turnPage(1)">&#9654;</button>
+            <div class="notebook" id="main-notebook">
+                <div class="notebook-spine"></div>
+                <div class="page left" id="page-left"></div>
+                <div class="page right" id="page-right"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Base de Datos -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <!-- Pantalla de carga interna -->
+            <div class="loading-screen" id="loading-screen">
+                <div class="spinner"></div>
+                <div id="loading-text">Guardando en la nube...</div>
+            </div>
+
+            <button class="close-modal" onclick="closeModal()">X</button>
+            <h2 id="modal-title" style="font-family: 'Caveat', cursive; font-size: 2.2rem; margin-bottom:10px; color:var(--highlight);">Cita</h2>
+            
+            <label style="display:flex; align-items:center; gap:10px; font-weight:bold; cursor:pointer;">
+                <input type="checkbox" id="modal-done" style="width:22px; height:22px; accent-color:#000;"> MARCAR COMO REALIZADA
+            </label>
+            
+            <label style="display:block; margin-top:15px; font-weight:bold;">Fecha:</label>
+            <input type="date" id="modal-date">
+            
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:15px;">
+                <label style="font-weight:bold; flex-grow:1;">Subir Fotografía a la Nube:</label>
+                <button id="btn-delete-photo" type="button" onclick="removePhoto()" style="display:none; background:#cc0000; color:white; border:none; padding:5px 10px; cursor:pointer; font-size:0.8rem; font-weight:bold; border-radius:3px; box-shadow:2px 2px 4px rgba(0,0,0,0.3);">🗑️ Eliminar Foto</button>
+            </div>
+            <input type="file" id="modal-photo" accept="image/*">
+            
+            <label style="display:block; margin-top:15px; font-weight:bold;">Pequeña Descripción (Max 200 car.):</label>
+            <textarea id="modal-desc" maxlength="200" rows="3" style="width:100%; padding:10px; margin-top:5px; border:2px solid var(--ink); background:white; font-family:'Caveat', cursive; font-size:1.2rem; resize:none;" placeholder="Escribe un recuerdo..."></textarea>
+            
+            <button onclick="saveDate()" style="width:100%; padding:15px; margin-top:20px; background:var(--ink); color:white; font-weight:900; border:none; cursor:pointer; font-size:1rem;">GUARDAR EN EL ÁLBUM</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. CONFIGURACIÓN DE FIREBASE (¡Pega aquí tus datos!)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "PEGA_AQUÍ_TU_API_KEY",
+            authDomain: "PEGA_AQUÍ_TU_AUTH_DOMAIN",
+            projectId: "PEGA_AQUÍ_TU_PROJECT_ID",
+            storageBucket: "PEGA_AQUÍ_TU_STORAGE_BUCKET",
+            messagingSenderId: "PEGA_AQUÍ_TU_MESSAGING_SENDER_ID",
+            appId: "PEGA_AQUÍ_TU_APP_ID"
+        };
+
+        // Inicializar Firebase (Solo Firestore)
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        
+        // ==========================================
+        // CONFIGURACIÓN DE CLOUDINARY (NUEVO)
+        // ==========================================
+        const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/p8nrjgqo/image/upload";
+        const CLOUDINARY_PRESET = "wgesuw7o";
+
+        // ==========================================
+        // 2. VARIABLES GLOBALES Y LISTA
+        // ==========================================
+        const listaCitas = [
+            "Picnic", "Charcos", "Cine", "Salir a comer", "Ir a un parque", "Pueblito", 
+            "Museo", "Noche de películas", "Preparar un postre", "Pintar cuadros", 
+            "Parque de diversiones", "Mirador", "Zoológico", "Tour", "Cocinar Juntos", 
+            "Desayunar Juntos", "Dibujar", "Armar un lego", "Skincare", "Bailar (Aprender)", 
+            "Manualidades", "Hacer una alcancia", "Pijamada", "Parque acuático", "Bolos", 
+            "Acuario", "Navidad juntos", "Hacer una torta", "Personalizar camisetas", 
+            "Rompecabezas", "Pintar", "Concierto", "Pescar", "Disfrazarnos juntos", 
+            "Vestirnos Igual", "Cometas", "Cita tematica", "Sesion de fotos", 
+            "Comida favorita del otro", "Karaoke", "Camping", "Jardin botanico", 
+            "Hacer manillas", "Elegir el outfit del otro", "Glamping", "Helado", 
+            "Comer hamburguesas", "Regalo sorpresa", "Finca juntos", "Obra de teatro"
+        ];
+
+        let currentUser = 'Nico';
+        let currentSpread = 0; 
+        let currentFilter = 'all';
+        let activeCardIndex = null;
+        
+        let dataCitas = {};
+
+        // Efectos Visuales (Polvo)
+        const dustContainer = document.getElementById('dust-container');
+        for (let i = 0; i < 80; i++) {
+            let dust = document.createElement('div');
+            dust.className = 'dust-particle';
+            let sizeProb = Math.random();
+            let size = sizeProb < 0.6 ? Math.random() * 2 + 2 : (sizeProb < 0.9 ? Math.random() * 3 + 5 : Math.random() * 4 + 8);
+            dust.style.width = size + 'px'; dust.style.height = size + 'px';
+            dust.style.left = Math.random() * 100 + '%'; dust.style.top = Math.random() * 100 + '%';
+            dust.style.animationDelay = (Math.random() * 15) + 's';
+            dust.style.animationDuration = (Math.random() * 20 + 15) + 's';
+            dustContainer.appendChild(dust);
+        }
+        document.addEventListener('mousemove', (e) => {
+            const x = (window.innerWidth / 2 - e.pageX) / 30;
+            const y = (window.innerHeight / 2 - e.pageY) / 30;
+            dustContainer.style.transform = `translate(${x}px, ${y}px)`;
+        });
+
+        // ==========================================
+        // 3. SINCRONIZACIÓN EN TIEMPO REAL CON FIREBASE
+        // ==========================================
+        db.collection("album_citas").doc("datos_compartidos").onSnapshot((doc) => {
+            if (doc.exists) {
+                dataCitas = doc.data();
+            } else {
+                dataCitas = {};
+            }
+            renderSpread();
+            updateProgress();
+        });
+
+        function switchUser(user) {
+            currentUser = user;
+            document.getElementById('btn-Nico').classList.toggle('active', user === 'Nico');
+            document.getElementById('btn-Mishi').classList.toggle('active', user === 'Mishi');
+            
+            const nicoIcon = document.getElementById('icono-nico');
+            const mishiIcon = document.getElementById('icono-mishi');
+            const nameEl = document.getElementById('dynamic-name');
+            
+            if(user === 'Nico') {
+                nicoIcon.style.display = 'flex'; mishiIcon.style.display = 'none'; nameEl.innerText = "Nico";
+            } else {
+                nicoIcon.style.display = 'none'; mishiIcon.style.display = 'block'; nameEl.innerText = "Mishi";
+            }
+        }
+
+        function setFilter(filterType, btnElement) {
+            currentFilter = filterType;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active-filter'));
+            btnElement.classList.add('active-filter');
+            currentSpread = 0; renderSpread();
+        }
+
+        function getFilteredDates() {
+            return listaCitas.map((title, index) => {
+                const data = dataCitas[index] || { done: false, date: '', photo: '', registeredBy: null, desc: '' };
+                return { originalIndex: index, title, data };
+            }).filter(item => {
+                if (currentFilter === 'done') return item.data.done;
+                if (currentFilter === 'pending') return !item.data.done;
+                return true;
+            });
+        }
+
+        function turnPage(direction) {
+            const filtered = getFilteredDates();
+            const maxSpreads = Math.ceil(filtered.length / 8) - 1;
+            let newSpread = currentSpread + direction;
+            if (newSpread < 0) newSpread = 0;
+            if (newSpread > maxSpreads) newSpread = maxSpreads < 0 ? 0 : maxSpreads;
+            
+            if (currentSpread === newSpread) return; 
+
+            const notebook = document.getElementById('main-notebook');
+            notebook.classList.add('page-turning');
+            
+            setTimeout(() => {
+                currentSpread = newSpread;
+                renderSpread();
+            }, 250);
+            
+            setTimeout(() => {
+                notebook.classList.remove('page-turning');
+            }, 500);
+        }
+
+        function renderSpread() {
+            const leftContainer = document.getElementById('page-left');
+            const rightContainer = document.getElementById('page-right');
+            leftContainer.innerHTML = ''; rightContainer.innerHTML = '';
+
+            const filteredDates = getFilteredDates();
+            const startIndex = currentSpread * 8;
+            const datesForSpread = filteredDates.slice(startIndex, startIndex + 8);
+
+            datesForSpread.forEach((item, i) => {
+                const card = document.createElement('div');
+                card.className = `date-card ${item.data.done ? 'completed' : ''}`;
+                const rot = (Math.random() * 5) - 2.5;
+                card.style.transform = `rotate(${rot}deg)`;
+                
+                const authorBadge = item.data.registeredBy 
+                    ? `<div class="registered-badge" style="background: ${item.data.registeredBy === 'Mishi' ? 'var(--highlight)' : '#111'};">✓ ${item.data.registeredBy}</div>` 
+                    : '';
+                
+                const descriptionHtml = item.data.desc 
+                    ? `<div style="font-family:'Caveat', cursive; font-size:1.1rem; line-height:1.1; margin-top:5px; color:#333;">${item.data.desc}</div>`
+                    : '';
+
+                card.innerHTML = `
+                    <div class="tape-red"></div>
+                    <h3>${item.originalIndex + 1}. ${item.title}</h3>
+                    <div class="polaroid-img" style="${!item.data.photo ? 'background:repeating-linear-gradient(45deg, #eee, #eee 5px, #f5f5f5 5px, #f5f5f5 10px);' : ''}">
+                        ${item.data.photo ? `<img src="${item.data.photo}">` : ''}
+                    </div>
+                    ${item.data.date ? `<div style="font-family:'Caveat', cursive; font-weight:bold; margin-top:5px; font-size:1.1rem; color:var(--highlight);">${item.data.date}</div>` : ''}
+                    ${descriptionHtml}
+                    ${authorBadge}
+                `;
+                
+                card.onclick = () => openModal(item.originalIndex, item.title, item.data);
+                if (i < 4) leftContainer.appendChild(card);
+                else rightContainer.appendChild(card);
+            });
+        }
+
+        function updateProgress() {
+            let completed = 0;
+            listaCitas.forEach((_, index) => { if (dataCitas[index] && dataCitas[index].done) completed++; });
+            const pct = (completed / 50) * 100;
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+            document.getElementById('progress-text').innerText = `${completed}/50 COMPLETADAS`;
+        }
+
+        function openModal(index, title, citaData) {
+            activeCardIndex = index;
+            document.getElementById('modal-title').innerText = `${index + 1}. ${title}`;
+            document.getElementById('modal-done').checked = citaData.done || false;
+            document.getElementById('modal-date').value = citaData.date || '';
+            document.getElementById('modal-desc').value = citaData.desc || '';
+            document.getElementById('modal-photo').value = ''; 
+            
+            if(citaData.photo) { document.getElementById('btn-delete-photo').style.display = 'inline-block'; } 
+            else { document.getElementById('btn-delete-photo').style.display = 'none'; }
+            
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('modal').style.display = 'none'; activeCardIndex = null; }
+
+        // ==========================================
+        // 4. GUARDAR Y ELIMINAR DATOS (Firestore + Cloudinary)
+        // ==========================================
+        
+        async function removePhoto() {
+            if(confirm('¿Seguro que quieres eliminar la foto actual? Esta acción no se puede deshacer.')) {
+                document.getElementById('loading-text').innerText = "Eliminando foto...";
+                document.getElementById('loading-screen').style.display = 'flex';
+                
+                if (!dataCitas[activeCardIndex]) dataCitas[activeCardIndex] = {};
+                dataCitas[activeCardIndex].photo = '';
+                
+                await db.collection("album_citas").doc("datos_compartidos").set(dataCitas, { merge: true });
+                
+                document.getElementById('loading-screen').style.display = 'none';
+                closeModal();
+            }
+        }
+
+        async function saveDate() {
+            document.getElementById('loading-text').innerText = "Guardando en la nube...";
+            document.getElementById('loading-screen').style.display = 'flex';
+
+            const isDone = document.getElementById('modal-done').checked;
+            const dateVal = document.getElementById('modal-date').value;
+            const descVal = document.getElementById('modal-desc').value;
+            const photoInput = document.getElementById('modal-photo');
+            
+            if (!dataCitas[activeCardIndex]) dataCitas[activeCardIndex] = {};
+            
+            dataCitas[activeCardIndex].done = isDone;
+            dataCitas[activeCardIndex].date = dateVal;
+            dataCitas[activeCardIndex].desc = descVal;
+            dataCitas[activeCardIndex].registeredBy = isDone ? currentUser : null;
+
+            try {
+                // MODIFICACIÓN CLOUDINARY: Subir imagen directamente sin pasar por Firebase Storage
+                if (photoInput.files && photoInput.files[0]) {
+                    document.getElementById('loading-text').innerText = "Subiendo imagen a Cloudinary...";
+                    
+                    const file = photoInput.files[0];
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("upload_preset", CLOUDINARY_PRESET);
+
+                    // Petición HTTP directa a Cloudinary
+                    const response = await fetch(CLOUDINARY_URL, {
+                        method: "POST",
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.secure_url) {
+                        dataCitas[activeCardIndex].photo = result.secure_url; // Guardamos el link público
+                    } else {
+                        throw new Error("No se pudo obtener la URL de Cloudinary");
+                    }
+                }
+
+                // Escribir los datos JSON actualizados en Firestore (Textos + URL de la foto)
+                await db.collection("album_citas").doc("datos_compartidos").set(dataCitas, { merge: true });
+                
+                document.getElementById('loading-screen').style.display = 'none';
+                closeModal();
+
+            } catch (error) {
+                console.error("Error al guardar:", error);
+                alert("Hubo un error guardando la información. Revisa tu conexión a internet.");
+                document.getElementById('loading-screen').style.display = 'none';
+            }
+        }
+
+    </script>
+</body>
+</html>
