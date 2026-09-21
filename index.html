@@ -3,10 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scrapbook 50 Citas - Cloudinary & Responsive</title>
+    <title>Scrapbook Nico & Mishi - Cloudinary & Responsive</title>
+    
+    <!-- FUENTES -->
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Montserrat:wght@500;900&display=swap" rel="stylesheet">
     
-    <!-- FIREBASE SDKs (Solo App y Firestore. Storage fue removido para usar Cloudinary) -->
+    <!-- LIBRERÍAS PARA GENERAR PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- FIREBASE SDKs (Solo App y Firestore) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
@@ -52,8 +58,9 @@
         .crumpled-paper { position: absolute; width: 70px; height: 70px; background: #eee; border-radius: 50%; z-index: 8; box-shadow: 10px 15px 20px rgba(0,0,0,0.5), inset 5px 5px 15px rgba(0,0,0,0.2); background-image: radial-gradient(circle at 30% 30%, rgba(0,0,0,0.1) 0%, transparent 20%), linear-gradient(45deg, transparent 40%, rgba(0,0,0,0.1) 45%, transparent 50%), linear-gradient(-45deg, transparent 30%, rgba(0,0,0,0.15) 35%, transparent 40%); }
         .paperclip { position: absolute; width: 15px; height: 45px; border: 2px solid #ccc; border-radius: 10px; box-shadow: 3px 5px 5px rgba(0,0,0,0.4), inset 1px 1px 2px white; z-index: 7; }
         .paperclip::after { content: ''; position: absolute; top: 5px; left: 3px; width: 5px; height: 30px; border: 2px solid #ccc; border-bottom: none; border-radius: 5px 5px 0 0; }
-        .title-piece { position: absolute; top: 150px; left: 50%; transform: translateX(-50%) rotate(-3deg); background: #fff; padding: 15px 50px; box-shadow: 8px 12px 20px var(--shadow-soft); border-radius: 2px 255px 3px 25px / 255px 5px 225px 3px; border: 2px solid #ddd; z-index: 35; text-align: center; }
-        .title-piece h1 { font-family: 'Montserrat', sans-serif; font-size: 3.5rem; font-weight: 900; color: var(--ink); text-transform: uppercase; letter-spacing: -2px; line-height: 1; }
+        .title-piece { position: absolute; top: 150px; left: 50%; transform: translateX(-50%) rotate(-3deg); background: #fff; padding: 15px 40px; box-shadow: 8px 12px 20px var(--shadow-soft); border-radius: 2px 255px 3px 25px / 255px 5px 225px 3px; border: 2px solid #ddd; z-index: 35; text-align: center; }
+        .title-piece h1 { font-family: 'Montserrat', sans-serif; font-size: 2.8rem; font-weight: 900; color: var(--ink); text-transform: uppercase; letter-spacing: -2px; line-height: 1; }
+        
         .smartphone-front { position: absolute; top: 40px; left: 50px; width: 170px; height: 340px; background: #111; border-radius: 30px; box-shadow: 15px 25px 30px var(--shadow-hard), inset -3px -3px 8px rgba(255,255,255,0.2), inset 2px 2px 5px rgba(0,0,0,0.8); transform: rotate(-8deg); z-index: 25; padding: 12px; border: 2px solid #555; }
         .phone-notch { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 60px; height: 18px; background: #000; border-radius: 0 0 10px 10px; z-index: 30; }
         .phone-screen { width: 100%; height: 100%; background: #0f0f13; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; background-image: linear-gradient(180deg, #1c1c24, #0a0a0d); border: 2px solid #000; }
@@ -72,14 +79,24 @@
         .ch-bridge { width: 10px; height: 6px; background: #111; margin-top: -15px; border-radius: 2px; }
         .fresa-mishi { font-size: 5rem; line-height: 1; filter: drop-shadow(4px 4px 5px rgba(0,0,0,0.4)); animation: pop 0.3s ease-out; display: none; }
         @keyframes pop { 0% { transform: scale(0); } 80% { transform: scale(1.2); } 100% { transform: scale(1); } }
-        .clipboard { position: absolute; top: 40px; right: 50px; width: 250px; height: 350px; background: #c2aa8a; border-radius: 5px; box-shadow: 15px 25px 35px var(--shadow-hard); transform: rotate(5deg); z-index: 20; padding: 40px 15px 15px 15px; }
-        .clip-metal { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 90px; height: 45px; background: linear-gradient(to bottom, #e6e6e6, #999); border-radius: 5px; box-shadow: 0px 8px 10px rgba(0,0,0,0.7); }
-        .clipboard-paper { width: 100%; height: 100%; background: #fff; box-shadow: 2px 2px 6px rgba(0,0,0,0.2); padding: 15px; display: flex; flex-direction: column; gap: 15px; }
-        .filter-btn { background: transparent; border: 2px solid var(--ink); padding: 8px; font-weight: 900; text-transform: uppercase; cursor: pointer; transition: 0.2s; font-size: 0.8rem; }
-        .filter-btn.active-filter { background: var(--highlight); color: white; border-color: var(--highlight); }
-        .progress-box { border: 2px solid var(--ink); height: 30px; position: relative; margin-top: auto; }
+        
+        /* PORTAPAPELES Y BOTÓN PDF */
+        .clipboard { position: absolute; top: 40px; right: 50px; width: 260px; height: 380px; background: #c2aa8a; border-radius: 5px; box-shadow: 15px 25px 35px var(--shadow-hard); transform: rotate(5deg); z-index: 20; padding: 40px 15px 15px 15px; }
+        .clip-metal { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 90px; height: 45px; background: linear-gradient(to bottom, #e6e6e6, #999); border-radius: 5px; box-shadow: 0px 8px 10px rgba(0,0,0,0.7); z-index: 21; }
+        .clipboard-paper { width: 100%; height: 100%; background: #fff; box-shadow: 2px 2px 6px rgba(0,0,0,0.2); padding: 15px; display: flex; flex-direction: column; gap: 12px; }
+        
+        .progress-box { border: 2px solid var(--ink); height: 30px; position: relative; margin-top: 0; margin-bottom: 5px; }
         .progress-bar { background: var(--ink); height: 100%; width: 0%; transition: width 0.3s; }
         .progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; mix-blend-mode: difference; font-size: 0.8rem; font-weight: bold; width: 100%; text-align: center; }
+        
+        .filter-btn { background: transparent; border: 2px solid var(--ink); padding: 8px; font-weight: 900; text-transform: uppercase; cursor: pointer; transition: 0.2s; font-size: 0.8rem; }
+        .filter-btn.active-filter { background: var(--highlight); color: white; border-color: var(--highlight); }
+        
+        .pdf-btn { margin-top: auto; background: var(--ink); color: white; border: none; padding: 12px; font-weight: 900; cursor: pointer; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; }
+        .pdf-btn:hover { background: var(--highlight); }
+        .pdf-btn:disabled { background: #666; cursor: wait; }
+
+        /* CUADERNO */
         .notebook-wrapper { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(1deg); z-index: 30; }
         .notebook { display: flex; width: 900px; height: 580px; background: #fff; box-shadow: 35px 45px 50px var(--shadow-hard); border-radius: 8px; position: relative; transform-origin: center; }
         .notebook.page-turning { animation: flipPageAnim 0.5s ease-in-out forwards; }
@@ -100,6 +117,8 @@
         .polaroid-img { width: 100%; height: 90px; background: #eee; border: 1px solid #ccc; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         .polaroid-img img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(10%) sepia(20%); }
         .registered-badge { position: absolute; bottom: -8px; right: -8px; color: white; font-family: 'Montserrat', sans-serif; font-size: 0.65rem; font-weight: 900; padding: 3px 8px; border-radius: 3px; transform: rotate(-6deg); box-shadow: 2px 3px 5px rgba(0,0,0,0.4); z-index: 10; }
+        
+        /* MODAL */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(5px); }
         .modal { background: var(--paper); padding: 2.5rem; border: 2px solid #ddd; box-shadow: 15px 25px 40px rgba(0,0,0,0.7); width: 450px; max-width: 95%; position: relative; transform: rotate(1deg); }
         .modal input[type="date"], .modal input[type="file"] { width: 100%; padding: 12px; margin-top: 5px; border: 2px solid var(--ink); background: white; }
@@ -115,38 +134,31 @@
             body { min-height: 100vh; overflow-y: auto; overflow-x: hidden; padding-bottom: 80px; }
             .desk-container { height: auto; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 30px; padding-top: 40px; }
             
-            /* Ocultar accesorios puramente decorativos en celular para evitar desorden */
             .camera-3d, .eraser-3d, .tape-roll, .marker, .glasses-3d, .pencil-3d, .ruler-3d, .crumpled-paper, .paperclip, .date-paper, .coffee-cup, .post-it { display: none !important; }
 
-            /* Cambiar posiciones absolutas a relativas para que se apilen hacia abajo */
             .title-piece { position: relative; top: 0; left: 0; transform: rotate(-3deg); margin-bottom: 20px; }
             
-            /* Agrupar elementos interactivos visualmente */
             .smartphone-front, .user-polaroid, .clipboard { position: relative; top: 0; left: 0; right: 0; margin: 0 auto; box-shadow: 10px 15px 20px var(--shadow-soft); }
             .smartphone-front { transform: rotate(-2deg); margin-bottom: 15px; }
             .user-polaroid { transform: rotate(3deg); margin-bottom: 15px; }
             .clipboard { transform: rotate(-1deg); margin-bottom: 30px; }
 
-            /* Ajustar el cuaderno principal al 100% del ancho del celular */
             .notebook-wrapper { position: relative; top: 0; left: 0; transform: none; width: 95%; max-width: 600px; margin: 0 auto; margin-top: 20px; }
             .notebook { width: 100%; height: auto; min-height: 800px; flex-direction: column; border-radius: 8px; }
-            .notebook::before { display: none; } /* Quitar sombra extra */
+            .notebook::before { display: none; } 
             .notebook-spine { width: 100%; height: 30px; top: 50%; left: 0; transform: translateY(-50%); background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.1) 50%, transparent); z-index: 35; }
             
-            /* Las páginas izquierda y derecha ahora se apilan una arriba de la otra */
             .page { width: 100%; min-height: 500px; padding: 20px; grid-template-columns: 1fr 1fr; gap: 15px; }
             .page.left { border-right: none; border-bottom: 1px solid #e0e0e0; }
             
-            /* Reposicionar los botones de flecha abajo del cuaderno */
             .page-turn { position: absolute; padding: 15px 25px; border-radius: 5px; top: auto; bottom: -70px; transform: none; z-index: 50; }
             .page-turn.prev { left: 10%; border-radius: 10px; }
             .page-turn.next { right: 10%; border-radius: 10px; }
         }
         
-        /* Ajuste extra para celulares muy delgados */
         @media (max-width: 500px) {
-            .page { grid-template-columns: 1fr; /* 1 foto por fila en vez de 2 */ }
-            .title-piece h1 { font-size: 2.5rem; }
+            .page { grid-template-columns: 1fr; }
+            .title-piece h1 { font-size: 2.2rem; }
         }
     </style>
 </head>
@@ -156,7 +168,7 @@
     <div id="dust-container"></div>
 
     <div class="desk-container">
-        <!-- ACCESORIOS 3D (Se ocultan automáticamente en móviles) -->
+        <!-- ACCESORIOS 3D -->
         <div class="coffee-cup"><div class="coffee-inside"></div><div class="coffee-handle"></div></div>
         <div class="camera-3d"><div class="camera-lens"></div><div class="camera-button"></div><div class="camera-flash"></div></div>
         <div class="date-paper">INICIO: 25 - OCT - 2025</div>
@@ -175,8 +187,9 @@
         <div class="paperclip" style="top: 250px; left: 450px; transform: rotate(45deg);"></div>
         <div class="paperclip" style="bottom: 250px; right: 450px; transform: rotate(-15deg);"></div>
 
+        <!-- TÍTULO ACTUALIZADO -->
         <div class="title-piece">
-            <h1>50 Citas</h1>
+            <h1>Citas Nico & Mishi</h1>
         </div>
 
         <div class="smartphone-front">
@@ -204,13 +217,18 @@
         <div class="clipboard">
             <div class="clip-metal"></div>
             <div class="clipboard-paper">
+                <!-- BARRA DE PROGRESO REPOSICIONADA -->
+                <div class="progress-box">
+                    <div class="progress-bar" id="progress-bar"></div>
+                    <div class="progress-text" id="progress-text">0/76 COMPLETADAS</div>
+                </div>
+                
                 <button class="filter-btn active-filter" onclick="setFilter('all', this)">Todas las citas</button>
                 <button class="filter-btn" onclick="setFilter('done', this)">Completadas</button>
                 <button class="filter-btn" onclick="setFilter('pending', this)">Pendientes</button>
-                <div class="progress-box">
-                    <div class="progress-bar" id="progress-bar"></div>
-                    <div class="progress-text" id="progress-text">0/50</div>
-                </div>
+                
+                <!-- BOTÓN DE PDF AÑADIDO -->
+                <button onclick="generarPDF()" class="pdf-btn" id="btn-pdf">DESCARGAR PDF</button>
             </div>
         </div>
 
@@ -228,10 +246,9 @@
     <!-- Modal Base de Datos -->
     <div class="modal-overlay" id="modal">
         <div class="modal">
-            <!-- Pantalla de carga interna -->
             <div class="loading-screen" id="loading-screen">
                 <div class="spinner"></div>
-                <div id="loading-text">Guardando en la nube...</div>
+                <div id="loading-text" style="text-align:center; margin: 0 20px;">Guardando en la nube...</div>
             </div>
 
             <button class="close-modal" onclick="closeModal()">X</button>
@@ -259,7 +276,7 @@
 
     <script>
         // ==========================================
-        // 1. CONFIGURACIÓN DE FIREBASE (¡Pega aquí tus datos!)
+        // 1. CONFIGURACIÓN DE FIREBASE Y CLOUDINARY
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDqOj7dimO5iU3s-d48BQ8fzd-rlYFNqRI",
@@ -270,20 +287,14 @@
             appId: "1:1041585507682:web:2f375dee720646c61c303b"
         };
 
-        // Inicializar Firebase (Solo Firestore)
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
         const db = firebase.firestore();
         
-        // ==========================================
-        // CONFIGURACIÓN DE CLOUDINARY (NUEVO)
-        // ==========================================
         const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/p8nrjgqo/image/upload";
         const CLOUDINARY_PRESET = "wgesuw7o";
 
         // ==========================================
-        // 2. VARIABLES GLOBALES Y LISTA
+        // 2. NUEVA LISTA DE CITAS (76 TOTALES)
         // ==========================================
         const listaCitas = [
             "Picnic", "Charcos", "Cine", "Salir a comer", "Ir a un parque", "Pueblito", 
@@ -296,14 +307,20 @@
             "Vestirnos Igual", "Cometas", "Cita tematica", "Sesion de fotos", 
             "Comida favorita del otro", "Karaoke", "Camping", "Jardin botanico", 
             "Hacer manillas", "Elegir el outfit del otro", "Glamping", "Helado", 
-            "Comer hamburguesas", "Regalo sorpresa", "Finca juntos", "Obra de teatro"
+            "Comer hamburguesas", "Regalo sorpresa", "Finca juntos", "Obra de teatro",
+            "Ir a un lugar aleatorio en el mapa", "Escape Room", "Patinar", "Carritos Chocones",
+            "Jugar ping pong", "Senderismo", "Cata de chocolate", "Zona Arcade",
+            "Hacer cócteles", "Ruta de la empanada", "Ruta de la salchipapa", "Ruta de la hamburguesa",
+            "Ruta de la pizza", "Adopción (Vivero)", "Cápsulas del tiempo (Cartas)", "Juegos cooperativos",
+            "Juegos de mesa", "Jugar con pistolas de gel", "Inventar un nuevo idioma", "Observatorio",
+            "Comprar ropa de segunda", "Show stand-up", "Fogata y masmelos", "Que nos lean el tarot",
+            "Hacer panes", "Jugar Paintball"
         ];
 
         let currentUser = 'Nico';
         let currentSpread = 0; 
         let currentFilter = 'all';
         let activeCardIndex = null;
-        
         let dataCitas = {};
 
         // Efectos Visuales (Polvo)
@@ -326,14 +343,10 @@
         });
 
         // ==========================================
-        // 3. SINCRONIZACIÓN EN TIEMPO REAL CON FIREBASE
+        // 3. SINCRONIZACIÓN Y LÓGICA DE INTERFAZ
         // ==========================================
         db.collection("album_citas").doc("datos_compartidos").onSnapshot((doc) => {
-            if (doc.exists) {
-                dataCitas = doc.data();
-            } else {
-                dataCitas = {};
-            }
+            if (doc.exists) { dataCitas = doc.data(); } else { dataCitas = {}; }
             renderSpread();
             updateProgress();
         });
@@ -384,14 +397,8 @@
             const notebook = document.getElementById('main-notebook');
             notebook.classList.add('page-turning');
             
-            setTimeout(() => {
-                currentSpread = newSpread;
-                renderSpread();
-            }, 250);
-            
-            setTimeout(() => {
-                notebook.classList.remove('page-turning');
-            }, 500);
+            setTimeout(() => { currentSpread = newSpread; renderSpread(); }, 250);
+            setTimeout(() => { notebook.classList.remove('page-turning'); }, 500);
         }
 
         function renderSpread() {
@@ -436,12 +443,16 @@
 
         function updateProgress() {
             let completed = 0;
+            const total = listaCitas.length;
             listaCitas.forEach((_, index) => { if (dataCitas[index] && dataCitas[index].done) completed++; });
-            const pct = (completed / 50) * 100;
+            const pct = (completed / total) * 100;
             document.getElementById('progress-bar').style.width = `${pct}%`;
-            document.getElementById('progress-text').innerText = `${completed}/50 COMPLETADAS`;
+            document.getElementById('progress-text').innerText = `${completed}/${total} COMPLETADAS`;
         }
 
+        // ==========================================
+        // 4. FUNCIONES DEL MODAL (Guardar Datos)
+        // ==========================================
         function openModal(index, title, citaData) {
             activeCardIndex = index;
             document.getElementById('modal-title').innerText = `${index + 1}. ${title}`;
@@ -458,10 +469,6 @@
 
         function closeModal() { document.getElementById('modal').style.display = 'none'; activeCardIndex = null; }
 
-        // ==========================================
-        // 4. GUARDAR Y ELIMINAR DATOS (Firestore + Cloudinary)
-        // ==========================================
-        
         async function removePhoto() {
             if(confirm('¿Seguro que quieres eliminar la foto actual? Esta acción no se puede deshacer.')) {
                 document.getElementById('loading-text').innerText = "Eliminando foto...";
@@ -471,7 +478,6 @@
                 dataCitas[activeCardIndex].photo = '';
                 
                 await db.collection("album_citas").doc("datos_compartidos").set(dataCitas, { merge: true });
-                
                 document.getElementById('loading-screen').style.display = 'none';
                 closeModal();
             }
@@ -494,33 +500,21 @@
             dataCitas[activeCardIndex].registeredBy = isDone ? currentUser : null;
 
             try {
-                // MODIFICACIÓN CLOUDINARY: Subir imagen directamente sin pasar por Firebase Storage
                 if (photoInput.files && photoInput.files[0]) {
                     document.getElementById('loading-text').innerText = "Subiendo imagen a Cloudinary...";
-                    
                     const file = photoInput.files[0];
                     const formData = new FormData();
                     formData.append("file", file);
                     formData.append("upload_preset", CLOUDINARY_PRESET);
 
-                    // Petición HTTP directa a Cloudinary
-                    const response = await fetch(CLOUDINARY_URL, {
-                        method: "POST",
-                        body: formData
-                    });
-                    
+                    const response = await fetch(CLOUDINARY_URL, { method: "POST", body: formData });
                     const result = await response.json();
                     
-                    if (result.secure_url) {
-                        dataCitas[activeCardIndex].photo = result.secure_url; // Guardamos el link público
-                    } else {
-                        throw new Error("No se pudo obtener la URL de Cloudinary");
-                    }
+                    if (result.secure_url) { dataCitas[activeCardIndex].photo = result.secure_url; } 
+                    else { throw new Error("No se pudo obtener la URL de Cloudinary"); }
                 }
 
-                // Escribir los datos JSON actualizados en Firestore (Textos + URL de la foto)
                 await db.collection("album_citas").doc("datos_compartidos").set(dataCitas, { merge: true });
-                
                 document.getElementById('loading-screen').style.display = 'none';
                 closeModal();
 
@@ -531,6 +525,180 @@
             }
         }
 
+        // ==========================================
+        // 5. NUEVO: GENERADOR DE PDF PARA IMPRESIÓN
+        // ==========================================
+        async function generarPDF() {
+            const btn = document.getElementById('btn-pdf');
+            
+            // 1. Filtrar solo las citas que estén completadas Y tengan una foto subida
+            const citasParaImprimir = listaCitas.map((title, index) => {
+                return { title, index, data: dataCitas[index] || {} };
+            }).filter(item => item.data.done && item.data.photo);
+
+            if (citasParaImprimir.length === 0) {
+                alert("Para generar el PDF, primero deben haber citas marcadas como Completadas que incluyan una fotografía.");
+                return;
+            }
+
+            // Preparar UI
+            btn.innerText = "PREPARANDO PDF...";
+            btn.disabled = true;
+            document.getElementById('loading-text').innerText = "Organizando fotografías para el PDF... \n(Esto puede tardar unos segundos)";
+            document.getElementById('loading-screen').style.display = 'flex';
+
+            try {
+                const { jsPDF } = window.jspdf;
+                // Formato 'letter' (Carta), orientación 'landscape' (Horizontal)
+                const doc = new jsPDF({ orientation: 'landscape', format: 'letter' });
+                
+                // Crear un contenedor oculto para dibujar las hojas temporalmente
+                const container = document.createElement('div');
+                container.style.position = 'fixed';
+                container.style.top = '-9999px';
+                container.style.left = '-9999px';
+                container.style.width = '1056px'; // Proporción ideal para Carta Landscape a 96dpi
+                container.style.height = '816px';
+                container.style.background = 'white';
+                container.style.display = 'flex';
+                container.style.justifyContent = 'space-evenly';
+                container.style.alignItems = 'center';
+                container.style.padding = '40px';
+                document.body.appendChild(container);
+
+                // Agrupar las citas de 2 en 2 para cada página
+                const chunks = [];
+                for (let i = 0; i < citasParaImprimir.length; i += 2) {
+                    chunks.push(citasParaImprimir.slice(i, i + 2));
+                }
+
+                // Generar las páginas una por una
+                for (let i = 0; i < chunks.length; i++) {
+                    container.innerHTML = '';
+                    
+                    for (let cita of chunks[i]) {
+                        // Construir el diseño de la Polaroid individual
+                        const polaroid = document.createElement('div');
+                        polaroid.style.width = '420px';
+                        polaroid.style.height = '620px';
+                        polaroid.style.background = '#fafafa';
+                        polaroid.style.border = '1px solid #ddd';
+                        polaroid.style.boxShadow = '10px 15px 25px rgba(0,0,0,0.15)';
+                        polaroid.style.padding = '25px 25px 45px 25px';
+                        polaroid.style.display = 'flex';
+                        polaroid.style.flexDirection = 'column';
+                        polaroid.style.position = 'relative';
+                        // Rotación sutil para el estilo scrapbook
+                        polaroid.style.transform = `rotate(${(Math.random() * 4) - 2}deg)`;
+
+                        // Cinta adhesiva
+                        const tape = document.createElement('div');
+                        tape.style.position = 'absolute';
+                        tape.style.top = '-15px';
+                        tape.style.left = '50%';
+                        tape.style.transform = 'translateX(-50%) rotate(-2deg)';
+                        tape.style.width = '120px';
+                        tape.style.height = '35px';
+                        tape.style.background = 'rgba(230,0,0,0.8)'; // Cinta Roja
+                        tape.style.borderLeft = '2px dashed #990000';
+                        tape.style.borderRight = '2px dashed #990000';
+                        polaroid.appendChild(tape);
+
+                        // Título de la cita
+                        const title = document.createElement('h3');
+                        title.innerText = `${cita.index + 1}. ${cita.title}`;
+                        title.style.fontFamily = "'Montserrat', sans-serif";
+                        title.style.fontSize = '1.4rem';
+                        title.style.textTransform = 'uppercase';
+                        title.style.fontWeight = '900';
+                        title.style.textAlign = 'center';
+                        title.style.marginBottom = '15px';
+                        title.style.color = '#0a0a0a';
+                        polaroid.appendChild(title);
+
+                        // Contenedor de la Imagen
+                        const imgCont = document.createElement('div');
+                        imgCont.style.width = '100%';
+                        imgCont.style.height = '380px';
+                        imgCont.style.background = '#eee';
+                        imgCont.style.border = '1px solid #ccc';
+                        imgCont.style.overflow = 'hidden';
+                        
+                        const img = new Image();
+                        img.crossOrigin = "anonymous"; // Permite que html2canvas lea la imagen de Cloudinary
+                        img.src = cita.data.photo;
+                        img.style.width = '100%';
+                        img.style.height = '100%';
+                        img.style.objectFit = 'cover';
+                        img.style.filter = 'grayscale(10%) sepia(20%)'; // Filtro Vintage
+                        
+                        // Esperar a que la imagen cargue completamente en el caché oculto
+                        await new Promise((resolve) => {
+                            img.onload = resolve;
+                            img.onerror = resolve; 
+                        });
+
+                        imgCont.appendChild(img);
+                        polaroid.appendChild(imgCont);
+
+                        // Fecha y Descripción
+                        if(cita.data.date) {
+                            const dateEl = document.createElement('div');
+                            dateEl.innerText = cita.data.date;
+                            dateEl.style.fontFamily = "'Caveat', cursive";
+                            dateEl.style.fontSize = '1.8rem';
+                            dateEl.style.fontWeight = 'bold';
+                            dateEl.style.color = '#e60000';
+                            dateEl.style.marginTop = '15px';
+                            dateEl.style.textAlign = 'center';
+                            polaroid.appendChild(dateEl);
+                        }
+
+                        if(cita.data.desc) {
+                            const descEl = document.createElement('div');
+                            descEl.innerText = cita.data.desc;
+                            descEl.style.fontFamily = "'Caveat', cursive";
+                            descEl.style.fontSize = '1.5rem';
+                            descEl.style.color = '#333';
+                            descEl.style.marginTop = '10px';
+                            descEl.style.textAlign = 'center';
+                            descEl.style.lineHeight = '1.1';
+                            polaroid.appendChild(descEl);
+                        }
+
+                        container.appendChild(polaroid);
+                    }
+
+                    // Convertir el HTML temporal a una imagen para el PDF
+                    const canvas = await html2canvas(container, {
+                        scale: 2, // Mejora la resolución para impresión
+                        useCORS: true,
+                        allowTaint: false,
+                        backgroundColor: '#ffffff'
+                    });
+
+                    const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                    
+                    // Si no es la primera página, añadimos una nueva al documento
+                    if (i > 0) doc.addPage();
+                    
+                    // Colocar la imagen en formato carta horizontal (Dimensiones jsPDF: 279.4 x 215.9 mm)
+                    doc.addImage(imgData, 'JPEG', 0, 0, 279.4, 215.9); 
+                }
+
+                // Eliminar contenedor temporal y guardar PDF
+                document.body.removeChild(container);
+                doc.save('Album_Citas_Nico_y_Mishi.pdf');
+
+            } catch (err) {
+                console.error(err);
+                alert("Hubo un error inesperado al intentar generar el archivo PDF.");
+            } finally {
+                btn.innerText = "DESCARGAR PDF";
+                btn.disabled = false;
+                document.getElementById('loading-screen').style.display = 'none';
+            }
+        }
     </script>
 </body>
 </html>
